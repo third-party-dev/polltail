@@ -1,0 +1,130 @@
+{
+  "name": "polltail",
+  "displayName": "Poll Tail",
+  "description": "Open a file in a live, polled view that follows appended content. Does not depend on VS Code's file watcher or inotify.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "tail",
+    "log",
+    "follow",
+    "poll",
+    "watch"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onFileSystem:polltail"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "polltail.open",
+        "title": "Poll Tail: Open File (Follow)"
+      },
+      {
+        "command": "polltail.toggleFollow",
+        "title": "Poll Tail: Toggle Follow",
+        "icon": "$(arrow-down)"
+      },
+      {
+        "command": "polltail.toggleReadOnly",
+        "title": "Poll Tail: Toggle Read-only",
+        "icon": "$(lock)"
+      },
+      {
+        "command": "polltail.reload",
+        "title": "Poll Tail: Reload Now"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "polltail.open",
+          "when": "resourceScheme == file && !explorerResourceIsFolder",
+          "group": "navigation@99"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "polltail.open",
+          "when": "resourceScheme == file",
+          "group": "1_open"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "polltail.toggleFollow",
+          "when": "resourceScheme == polltail",
+          "group": "navigation@1"
+        },
+        {
+          "command": "polltail.toggleReadOnly",
+          "when": "resourceScheme == polltail",
+          "group": "navigation@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "polltail.toggleFollow",
+          "when": "resourceScheme == polltail"
+        },
+        {
+          "command": "polltail.toggleReadOnly",
+          "when": "resourceScheme == polltail"
+        },
+        {
+          "command": "polltail.reload",
+          "when": "resourceScheme == polltail"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Poll Tail",
+      "properties": {
+        "polltail.pollIntervalMs": {
+          "type": "number",
+          "default": 1000,
+          "minimum": 100,
+          "description": "How often (milliseconds) open Poll Tail files are checked for changes."
+        },
+        "polltail.defaultFollow": {
+          "type": "boolean",
+          "default": true,
+          "description": "Follow (scroll to the end as content is appended) by default when a file is opened."
+        },
+        "polltail.defaultReadOnly": {
+          "type": "boolean",
+          "default": true,
+          "description": "Open files read-only by default. Toggle per file with 'Poll Tail: Toggle Read-only'."
+        },
+        "polltail.maxBytes": {
+          "type": "number",
+          "default": 20971520,
+          "minimum": 0,
+          "description": "If a file is larger than this many bytes, only the last this-many bytes are shown, and the file is forced read-only (so a save can never truncate the real file). 0 means no limit."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "test": "npm run compile && node --test \"out/test/*.test.js\"",
+    "package": "vsce package --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "1.85.0",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.4.0"
+  }
+}
