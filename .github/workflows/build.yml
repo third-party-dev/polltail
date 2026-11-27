@@ -1,0 +1,51 @@
+# Builds and tests the extension, and packages it as a VSIX. polltail is plain
+# JavaScript (no native code), so one VSIX works on every platform, in VS
+# Code, VSCodium and code-server. Runs on pushes to the `publish` branch and
+# pull requests into it (nothing on `main`), by hand (Actions > build > Run
+# workflow), and from release.yml for tags.
+#
+# Artifacts:
+#   vsix    polltail-<version>.vsix and SHA256SUMS
+
+name: build
+
+on:
+  push:
+    branches: [publish]
+  pull_request:
+    branches: [publish]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  vsix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22.22.0"
+          cache: npm
+      - name: npm ci
+        run: npm ci
+      - name: Test (compiles too)
+        run: npm test
+      - name: Package
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          mkdir -p out/vsix
+          npm run package -- --out "out/vsix/polltail-$version.vsix"
+          (cd out/vsix && sha256sum -- *.vsix > SHA256SUMS && cat SHA256SUMS)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vsix
+          path: out/vsix/
+          if-no-files-found: error

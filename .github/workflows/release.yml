@@ -1,0 +1,64 @@
+# Release: for a tag vX.Y.Z (the version in package.json) on a commit of the
+# `publish` branch, builds and tests the extension (build.yml) and makes a
+# draft GitHub release with the VSIX and SHA256SUMS.
+#
+#   git push origin main:publish        # or merge into publish
+#   git tag v0.1.0 origin/publish && git push origin v0.1.0
+#
+# The GitHub release stays a draft until someone publishes it.
+
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Tags are not tied to a branch: only release commits that are on `publish`,
+  # and only when the tag is the version in package.json.
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: The tagged commit is on the publish branch
+        run: |
+          git fetch --no-tags origin publish
+          git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD || {
+            echo "$GITHUB_REF_NAME ($GITHUB_SHA) is not on the publish branch"; exit 1; }
+      - name: The tag is the extension's version
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          test "$GITHUB_REF_NAME" = "v$version" || { echo "tag $GITHUB_REF_NAME, but package.json says $version"; exit 1; }
+
+  build:
+    needs: check
+    uses: ./.github/workflows/build.yml
+
+  github-release:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: vsix
+          path: release
+      - name: Check
+        run: (cd release && sha256sum -c SHA256SUMS)
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/* --draft --verify-tag \
+            --title "$GITHUB_REF_NAME" --generate-notes
